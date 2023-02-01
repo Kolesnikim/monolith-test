@@ -4,53 +4,6 @@ const GET_ALL_PRODUCTS_URL = 'catalog/getAll';
 const GET_PRODUCT_URL = 'catalog/get';
 const ADD_TO_CART_URL = 'cart/add';
 
-export interface IImage {
-  title: string,
-  url: string
-}
-export interface ILabel {
-  id: string,
-  title: string,
-  data: string
-}
-
-export interface ILabelAttribute {
-  attribute_id: string,
-  label_id: string
-}
-export interface IVariant {
-  id: string,
-  title: string,
-  image: IImage,
-  labels: ILabelAttribute[],
-  price: number,
-}
-
-export interface IAttribute {
-  id: string,
-  title: string,
-  type: string,
-  labels: ILabel[],
-}
-
-export interface IDirectSale {
-  is_direct: boolean;
-  type: string;
-}
-
-export interface IProduct {
-  id?: string,
-  direct_sale?: IDirectSale
-  discount_price?: string
-  title?: string,
-  description?: string,
-  images?: IImage[],
-  min_price?: number,
-  max_price?: number,
-  variants?: IVariant[]
-  attributes?: IAttribute[],
-}
-
 const httpClient = axios.create({
   baseURL: process.env.VUE_APP_BASE_API_URL,
   headers: {

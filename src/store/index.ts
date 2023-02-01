@@ -1,13 +1,18 @@
 import { createStore } from 'vuex';
-import { getAllProducts, getProduct, IAttribute, IProduct, IVariant } from '@/services/api-service';
+import {
+  getAllProducts,
+  getProduct,
+} from '@/core/services/api-service';
 import { cloneDeep } from 'lodash';
+import stringComparator from '@/helpers/helpers';
+import {
+  IAttribute,
+  IMonolithState,
+  IProduct,
+  IVariant,
+  IVariantsID,
+} from '@/core/types/core.types';
 
-export interface IMonolithState {
-  products: IProduct[];
-  product?: IProduct;
-  attributes?: IAttribute[];
-  variants?: IVariant[]
-}
 export default createStore({
   state: (): IMonolithState => ({
     products: [],
@@ -50,13 +55,41 @@ export default createStore({
       try {
         const response = await getProduct(id);
 
-        const product = response?.data?.data;
-        const attributes = response.data?.data?.attributes;
-        const variants = response.data?.data?.variants;
+        const product: IProduct = response?.data?.data;
+        const defaultAttributes: IAttribute[] = response.data?.data?.attributes;
+        const defaultVariants: IVariant[] = response.data?.data?.variants;
+
+        const transformedVariants = defaultVariants.map((variant) => {
+          const variantsById = variant.labels.reduce((acc: IVariantsID, cur) => {
+            acc[cur.attribute_id] = cur.label_id;
+            acc.variantIdentifier = !acc.variantIdentifier ? `${cur.attribute_id}${cur.label_id}` : `${acc.variantIdentifier}${cur.attribute_id}${cur.label_id}`;
+            acc[`attribute${cur.attribute_id}`] = cur.label_id;
+
+            if (!acc.hasOwnProperty('customAttributes')) {
+              acc.customAttributes = {};
+            }
+
+            // @ts-ignore
+            acc.customAttributes[cur.attribute_id] = cur.label_id;
+            return acc;
+          }, {});
+
+          return {
+            ...variant,
+            ...variantsById,
+          };
+        });
+
+        transformedVariants.forEach((variant) => {
+          variant.variantIdentifier = variant.variantIdentifier
+            .split('')
+            .sort(stringComparator)
+            .join('');
+        });
 
         commit('setProduct', product);
-        commit('setAttributes', attributes);
-        commit('setVariants', variants);
+        commit('setAttributes', defaultAttributes);
+        commit('setVariants', transformedVariants);
       } catch (error) {
         console.log(error);
       }

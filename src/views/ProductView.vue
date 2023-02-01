@@ -45,7 +45,8 @@
 import MonolithImageGallery from '@/components/ImageGallery.vue';
 import MonolithDropdown from '@/components/Dropdown.vue';
 import MonolithQuantityForm from '@/components/QuantityForm.vue';
-import { addToCart } from '@/services/api-service';
+import { addToCart } from '@/core/services/api-service';
+import stringComparator from '@/helpers/helpers';
 import { mapActions, mapGetters, mapMutations } from 'vuex';
 
 export default {
@@ -56,7 +57,7 @@ export default {
   },
   data() {
     return {
-      selectedAttributes: [],
+      selectedAttributes: {},
       quantity: 1,
     };
   },
@@ -73,66 +74,66 @@ export default {
       this.quantity = quantity;
     },
     async onVariantSubmit() {
-      if (this.selectedAttributes.length !== this.attributes.length) return;
+      if (Object.keys(this.selectedAttributes).length !== this.attributes.length) return;
 
-      this.selectedAttributes.sort((a, b) => a.attributeId - b.attributeId);
+      const attributesIdentifier = [...Object.keys(this.selectedAttributes), ...Object.values(this.selectedAttributes)]
+        .join('')
+        .split('')
+        .sort(stringComparator)
+        .join('');
 
-      let variantId;
+      const variantId = this.variants.find((variant) => variant.variantIdentifier === attributesIdentifier)?.id;
 
-      this.variants.forEach((variant) => {
-        variant.labels.forEach((label, idx) => {
-          if (
-            label.attribute_id === this.selectedAttributes[idx].attributeId
-            && label.label_id === this.selectedAttributes[idx].optionId
-          ) variantId = variant.id;
-        });
-      });
-
-      await addToCart(variantId, this.quantity);
+      if (variantId) {
+        await addToCart(variantId, this.quantity);
+      }
     },
     setSelectedVariants(params) {
       this.setAttributes(this.product.attributes);
 
       const { optionId, attributeId } = params;
 
-      this.selectedAttributes.push({ optionId, attributeId });
+      this.selectedAttributes[attributeId] = optionId;
 
       const variantImage = this.variants
-        .find((variant) => variant.labels.find((label) => label.attribute_id === attributeId && label.label_id === optionId));
+        .find((variant) => variant.hasOwnProperty(`attribute${attributeId}`) && variant[`attribute${attributeId}`] === optionId);
 
-      this.$refs.galleryRef.activeImageUrl = variantImage.image.url;
+      const availableVariants = this.variants
+        .filter((variant) => variant.hasOwnProperty(`attribute${attributeId}`) && variant[`attribute${attributeId}`] === optionId);
 
-      const variantLabels = this.variants
-        .map((variant) => variant.labels)
-        .filter((variantLabel) => variantLabel.find((label) => label.attribute_id === attributeId && label.label_id === optionId))
-        .reduce((acc, cur) => {
-          const otherAttributes = cur.filter((el) => el.attribute_id !== attributeId);
+      const selectedAttribute = this.attributes
+        .find((attribute) => attribute.id === attributeId);
 
-          otherAttributes.forEach((attr) => {
-            if (!acc.hasOwnProperty(attr.attribute_id)) {
-              acc[attr.attribute_id] = [attr.label_id];
-            } else acc[attr.attribute_id].push(attr.label_id);
+      if (selectedAttribute.type === 'COLOR') this.$refs.galleryRef.activeImageUrl = variantImage.image.url;
+
+      const VariantsAttributeKeys = availableVariants.reduce((acc, cur) => {
+        console.log(cur);
+
+        Object
+          .keys(cur.customAttributes)
+          .filter((key) => key !== attributeId)
+          .forEach((key) => {
+            if (!acc.hasOwnProperty(key)) {
+              const val = new Set();
+              val.add(cur[key]);
+              acc[key] = val;
+            } else {
+              acc[key].add(cur[key]);
+            }
           });
 
-          return acc;
-        }, {});
-
-      const selectedAttributes = this.attributes.find((attribute) => attribute.id === attributeId);
-      variantLabels[attributeId] = selectedAttributes.labels.map((label) => label.id);
+        return acc;
+      }, {});
 
       const filteredAttributes = this.attributes
         .map((filteredAttribute) => {
-          const labels = [];
+          if (filteredAttribute.id === selectedAttribute.id) return filteredAttribute;
 
-          if (!variantLabels[filteredAttribute.id]) return filteredAttribute;
+          let labs = filteredAttribute.labels;
 
-          const freeLabels = variantLabels[filteredAttribute.id];
+          labs = labs.filter((label) => VariantsAttributeKeys[filteredAttribute.id].has(label.id));
 
-          filteredAttribute.labels.forEach((label) => {
-            if (freeLabels.find((l) => l === label.id)) labels.push(label);
-          });
-
-          filteredAttribute.labels = labels;
+          filteredAttribute.labels = labs;
           return filteredAttribute;
         });
 

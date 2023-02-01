@@ -21,6 +21,8 @@ module.exports = {
     'no-param-reassign': 'off',
     'prefer-object-spread': 'off',
     'vuejs-accessibility/form-control-has-label': 'off',
+    'linebreak-style': 'off',
+    '@typescript-eslint/ban-ts-comment': 'off',
   },
   overrides: [
     {

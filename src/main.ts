@@ -1,5 +1,5 @@
 import { createApp } from 'vue';
-import { imager } from '@/services/api-service';
+import { imager } from '@/core/services/api-service';
 
 import App from './App.vue';
 import router from './router';
